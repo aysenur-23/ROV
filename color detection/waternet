@@ -1,0 +1,37 @@
+# Commented out IPython magic to ensure Python compatibility.
+import torch
+import cv2
+import matplotlib.pyplot as plt
+# %matplotlib inline
+
+# Make sure you are connected to a GPU instance
+torch.cuda.is_available()
+
+# Load from torchhub
+preprocess, postprocess, model = torch.hub.load('tnwei/waternet', 'waternet')
+model.eval();
+
+#!wget https://upload.wikimedia.org/wikipedia/commons/e/ea/ScubaDiver.jpg
+
+# Load one image using OpenCV
+im = cv2.imread("//content//fotik.jpeg")
+rgb_im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
+
+# Resize image
+rgb_im = cv2.resize(rgb_im, (720, 480))
+
+# Inference -> return numpy array (1, 3, H, W)
+rgb_ten, wb_ten, he_ten, gc_ten = preprocess(rgb_im)
+out_ten = model(rgb_ten, wb_ten, he_ten, gc_ten)
+out_im = postprocess(out_ten)
+
+fig, ax = plt.subplots(ncols=2, figsize=(14, 5))
+ax[0].imshow(rgb_im)
+ax[0].axis("off")
+ax[0].set_title("Original image")
+
+ax[1].imshow(out_im[0])
+ax[1].axis("off")
+ax[1].set_title("WaterNet output")
+
+plt.show()
