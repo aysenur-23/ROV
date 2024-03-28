@@ -1,0 +1,65 @@
+import cv2
+import numpy as np
+
+def find_nearest_ral_color(rgb_color):
+    ral_colors = {
+        'RAL1000': (205, 183, 158), 'RAL1001': (196, 169, 130), 'RAL1002': (198, 166, 61),
+        'RAL1003': (231, 171, 47), 'RAL1004': (199, 135, 51), 'RAL1005': (174, 122, 60),
+        'RAL1006': (207, 134, 50), 'RAL1007': (218, 154, 33), 'RAL1011': (133, 94, 66),
+        'RAL1012': (199, 179, 128), 'RAL1013': (220, 214, 194), 'RAL1014': (191, 160, 106),
+        'RAL1015': (223, 206, 158), 'RAL1016': (234, 224, 60), 'RAL1017': (236, 202, 0),
+    }
+
+    min_distance = float('inf')
+    nearest_color = None
+
+    for ral_code, ral_rgb in ral_colors.items():
+        # Renkler arasındaki Euclidean uzaklığı hesapla
+        distance = np.linalg.norm(np.array(rgb_color) - np.array(ral_rgb))
+        if distance < min_distance:
+            min_distance = distance
+            nearest_color = ral_code
+
+    return nearest_color
+
+cap = cv2.VideoCapture(0)
+
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
+
+    # Görüntüyü HSV renk uzayına dönüştür
+    hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+    lower_blue = np.array([90, 50, 50])
+    upper_blue = np.array([130, 255, 255])
+
+    mask = cv2.inRange(hsv_frame, lower_blue, upper_blue)
+
+    result = cv2.bitwise_and(frame, frame, mask=mask)
+
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    if contours:
+        max_contour = max(contours, key=cv2.contourArea)
+
+        x, y, w, h = cv2.boundingRect(max_contour)
+        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+        # Dikdörtgenin orta noktasını alarak piksel rengini al
+        center_x, center_y = x + w // 2, y + h // 2
+        pixel_color = frame[center_y, center_x]
+
+        # En yakın RAL rengini bul
+        nearest_ral = find_nearest_ral_color(pixel_color)
+
+        cv2.putText(frame, f"Nearest RAL: {nearest_ral}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+
+    cv2.imshow('Frame', frame)
+
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+cap.release()
+cv2.destroyAllWindows()
