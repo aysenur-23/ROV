@@ -1,12 +1,9 @@
 import cv2
 import numpy as np
 
-
-# Hedef RAL kodunu ve RGB değerini saklamak için değişkenler
 target_ral_code = None
 target_rgb = None
 
-# TXT dosyasından RAL kodunu ve RGB değerini okuma
 with open("ral_codes.txt", "r") as f:
   target_ral_code = f.readline().strip()
   # Read the RGB line
@@ -20,73 +17,53 @@ with open("ral_codes.txt", "r") as f:
       # Handle empty line (e.g., raise an exception or set default values)
       raise ValueError("Empty line in RGB values file")
 
-# Video yakalama
 cap = cv2.VideoCapture(0)
 
 while True:
-  # Kare yakalama
   ret, frame = cap.read()
 
-  # Başarısız olursa hata mesajı göster
-  if not ret:
+if not ret:
     print("Kamera hatası!")
     break
 
   # Görüntüyü HSV renk uzayına dönüştür
   hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
-  # Kullanıcı tarafından (örneğin bir arayüz aracılığıyla) belirlenecek renk aralığı
   lower_bound = np.array([0, 50, 50])
   upper_bound = np.array([179, 255, 255])
 
-  # Maskeyi oluşturma
   mask = cv2.inRange(hsv_frame, lower_bound, upper_bound)
 
-  # Yalnızca renk pikselleri tutmak için bitwise AND işlemi
   result = cv2.bitwise_and(frame, frame, mask=mask)
 
   # Kontur bulma
   contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
   if contours:
-    # En büyük kontur (hedef nesne)
     max_contour = max(contours, key=cv2.contourArea)
 
-    # Sınırlayıcı dikdörtgen koordinatları
     x, y, w, h = cv2.boundingRect(max_contour)
 
-    # Hedef nesneyi çevreleyen dikdörtgen çizme
     cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
-  # Renk arama döngüsü
   while True:
-      # Görüntüden piksel rengini alma
     center_x, center_y = x + w // 2, y + h // 2
     pixel_color = frame[center_y, center_x]
 
     # Hedef nesnenin rengiyle hedef RAL renginin RGB değerleri arasındaki farkı hesaplama
     color_difference = np.linalg.norm(np.array(pixel_color) - np.array(target_rgb))
 
-    # Renk farkı çok fazlaysa aramaya devam et
-    if color_difference > 10:  # Eşik değeri ayarlayın
-      break  # Renk farkı çok fazlaysa aramayı durdur
+    if color_difference > 10:  
+      Continue
 
-    # Renk farkını görüntüye yazdırma
     cv2.putText(frame, f"Renk Farkı: {color_difference:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-
-    # Aramayı durdur
     break
 
-  # Görüntüyü gösterme
   cv2.imshow('Frame', frame)
-
-  # Her milisaniyede bir görüntü yenile
   key = cv2.waitKey(1) & 0xFF
 
-  # 'q' tuşuna basılırsa döngüden çık
   if key == ord('q'):
     break
 
-# Pencereleri kapatma
 cap.release()
 cv2.destroyAllWindows()
